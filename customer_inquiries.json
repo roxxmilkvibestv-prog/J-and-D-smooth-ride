@@ -1,0 +1,79 @@
+[
+  {
+    "id": "inq_1790693420017",
+    "receivedAt": "2026-09-29T14:50:20.017Z",
+    "kigaliTime": "9/29/2026, 4:50:20 PM",
+    "clientName": "Test Client",
+    "clientPhone": "0796569416",
+    "clientEmail": "test@example.com",
+    "subject": "[J&D Customer Care Inquiry] from Test Client",
+    "message": "Hello, testing customer care support desk.",
+    "sentAtKigali": "Sep 29, 2026, 4:50 PM"
+  },
+  {
+    "id": "inq_1790693337302",
+    "receivedAt": "2026-09-29T14:48:57.302Z",
+    "kigaliTime": "9/29/2026, 4:48:57 PM",
+    "clientName": "joe boe",
+    "clientPhone": "0796569488",
+    "clientEmail": "africahowe@gmail.com",
+    "subject": "[J&D Customer Care Inquiry] from joe boe",
+    "message": "hi",
+    "sentAtKigali": "Sep 29, 2026, 4:48 PM"
+  },
+  {
+    "id": "inq_1790684315980",
+    "receivedAt": "2026-09-29T12:18:35.980Z",
+    "kigaliTime": "9/29/2026, 2:18:35 PM",
+    "clientName": "J&D Diagnostic Verification",
+    "clientPhone": "+250796569416",
+    "clientEmail": "corneliustch@gmail.com",
+    "subject": "[J&D Test Dispatch] Verification to corneliustch@gmail.com",
+    "message": "This is an automated verification test sent directly to corneliustch@gmail.com confirming email dispatch functionality.",
+    "sentAtKigali": "Sep 29, 2026, 2:18 PM"
+  },
+  {
+    "id": "inq_1790683954752",
+    "receivedAt": "2026-09-29T12:12:34.752Z",
+    "kigaliTime": "9/29/2026, 2:12:34 PM",
+    "clientName": "J&D Diagnostic Verification",
+    "clientPhone": "+250796569416",
+    "clientEmail": "roxxmilkvibestv@gmail.com",
+    "subject": "[J&D Test Dispatch] Verification to roxxmilkvibestv@gmail.com",
+    "message": "This is an automated verification test sent directly to roxxmilkvibestv@gmail.com confirming email dispatch functionality.",
+    "sentAtKigali": "Sep 29, 2026, 2:12 PM"
+  },
+  {
+    "id": "inq_1790683675516",
+    "receivedAt": "2026-09-29T12:07:55.516Z",
+    "kigaliTime": "9/29/2026, 2:07:55 PM",
+    "clientName": "joe boe",
+    "clientPhone": "0796569488",
+    "clientEmail": "africahowe@gmail.com",
+    "subject": "[J&D Customer Care Inquiry] from joe boe",
+    "message": "i need a ride",
+    "sentAtKigali": "Sep 29, 2026, 2:07 PM"
+  },
+  {
+    "id": "inq_1790683372895",
+    "receivedAt": "2026-09-29T12:02:52.895Z",
+    "kigaliTime": "9/29/2026, 2:02:52 PM",
+    "clientName": "joe boe",
+    "clientPhone": "0796569488",
+    "clientEmail": "africahowe@gmail.com",
+    "subject": "[J&D Customer Care Inquiry] from joe boe",
+    "message": "i need a ride",
+    "sentAtKigali": "Sep 29, 2026, 2:02 PM"
+  },
+  {
+    "id": "inq_1790682220210",
+    "receivedAt": "2026-09-29T11:43:40.210Z",
+    "kigaliTime": "9/29/2026, 1:43:40 PM",
+    "clientName": "joe boe",
+    "clientPhone": "0796569489",
+    "clientEmail": "africahowe@gmail.com",
+    "subject": "[J&D Customer Care Inquiry] from joe boe",
+    "message": "Hello, I need pricing information for regular moto rides across Kigali.",
+    "sentAtKigali": "Sep 29, 2026, 1:43 PM"
+  }
+]

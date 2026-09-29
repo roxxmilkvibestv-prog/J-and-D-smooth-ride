@@ -814,13 +814,26 @@ function normalizeToE164(rawPhone: string | undefined | null, fallback = '+25079
 
 // Unified SMS API Key resolver checking all secret variants
 function getSmsApiKey(): string {
-  const rawApiKey =
+  const direct =
     process.env.SMS_API_KEY ||
+    process.env.sms_api_key ||
     process.env.Httpsms_api_key ||
     process.env.HTTPSMS_API_KEY ||
-    process.env.sms_api_key ||
-    '';
-  return rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
+    process.env.httpsms_api_key;
+  if (direct && typeof direct === 'string' && direct.trim()) {
+    return direct.trim().replace(/^["']|["']$/g, '');
+  }
+
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v && typeof v === 'string' && v.trim().length > 0) {
+      const lower = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (lower === 'smsapikey' || lower === 'httpsmsapikey' || lower === 'httpsmskey') {
+        return v.trim().replace(/^["']|["']$/g, '');
+      }
+    }
+  }
+
+  return '';
 }
 
 interface SendSmsOptions {
@@ -1189,6 +1202,46 @@ app.post('/api/sms/notify-driver', async (req, res) => {
 });
 
 // ----------------------------------------------------
+// PERSISTENT FILE STORAGE HELPERS
+// ----------------------------------------------------
+function loadJsonFile(filePath: string): any[] {
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e: any) {
+    console.warn(`[Storage Warning] Error reading ${filePath}:`, e?.message);
+  }
+  return [];
+}
+
+function saveJsonFile(filePath: string, data: any[]) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e: any) {
+    console.error(`[Storage Error] Failed to write ${filePath}:`, e?.message);
+  }
+}
+
+const INQUIRIES_FILE = path.join(process.cwd(), 'customer_inquiries.json');
+
+function recordCustomerInquiry(inquiry: any) {
+  try {
+    const list = loadJsonFile(INQUIRIES_FILE);
+    list.unshift({
+      id: 'inq_' + Date.now(),
+      receivedAt: new Date().toISOString(),
+      kigaliTime: new Date().toLocaleString('en-US', { timeZone: 'Africa/Kigali' }),
+      ...inquiry,
+    });
+    saveJsonFile(INQUIRIES_FILE, list.slice(0, 100));
+  } catch (e: any) {
+    console.warn('[Inquiries Log Warning]', e?.message);
+  }
+}
+
+// ----------------------------------------------------
 // CUSTOMER CARE EMAIL HELPER (RESEND)
 // Official Customer Care Email: corneliustch@gmail.com
 // ----------------------------------------------------
@@ -1201,11 +1254,45 @@ function isValidEmail(email?: string | null): boolean {
 }
 
 function resolveCustomerCareEmail(): string {
-  const envEmail = (process.env.CUSTOMER_CARE_EMAIL || '').trim();
+  const envEmail = (
+    process.env.CUSTOMER_CARE_EMAIL ||
+    process.env.customer_care_email ||
+    process.env.Customer_care_email ||
+    ''
+  ).trim();
   if (isValidEmail(envEmail)) {
     return envEmail;
   }
   return DEFAULT_CUSTOMER_CARE_EMAIL;
+}
+
+// Case-insensitive resolution for Email API key across all environment formats
+function resolveEmailApiKey(): string {
+  const direct =
+    process.env.email_api_key ||
+    process.env.Email_api_key ||
+    process.env.EMAIL_API_KEY ||
+    process.env.resend_api_key ||
+    process.env.Resend_api_key ||
+    process.env.RESEND_API_KEY ||
+    process.env.email_key ||
+    process.env.Email_key ||
+    process.env.EMAIL_KEY;
+
+  if (direct && typeof direct === 'string' && direct.trim()) {
+    return direct.trim().replace(/^["']|["']$/g, '');
+  }
+
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v && typeof v === 'string' && v.trim().length > 0) {
+      const lower = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (lower === 'emailapikey' || lower === 'resendapikey' || lower === 'resendkey' || lower === 'emailkey') {
+        return v.trim().replace(/^["']|["']$/g, '');
+      }
+    }
+  }
+
+  return '';
 }
 
 async function sendCustomerCareEmail({
@@ -1220,14 +1307,15 @@ async function sendCustomerCareEmail({
   clientName?: string;
   message: string;
   subject?: string;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
-  const emailApiKey = (process.env.Email_api_key || process.env.EMAIL_API_KEY || '').trim();
+}): Promise<{ 
+  success: boolean; 
+  id?: string; 
+  error?: string; 
+  mailtoUrl?: string; 
+  loggedLocally?: boolean; 
+}> {
+  const emailApiKey = resolveEmailApiKey();
   const careEmail = resolveCustomerCareEmail();
-
-  if (!emailApiKey) {
-    console.warn('[Customer Care Email Warning] Email_api_key is not configured.');
-    return { success: false, error: 'Email_api_key not configured in environment' };
-  }
 
   const now = new Date();
   const sentAtKigali = now.toLocaleString('en-US', {
@@ -1237,6 +1325,44 @@ async function sendCustomerCareEmail({
   });
 
   const emailSubject = subject || `[J&D Customer Care Inquiry] from ${clientName || clientPhone || 'Kigali Client'}`;
+
+  // Always log inquiry to disk so no client message is lost
+  recordCustomerInquiry({
+    clientName: clientName || 'Anonymous Client',
+    clientPhone: clientPhone || 'Not provided',
+    clientEmail: clientEmail || 'Not provided',
+    subject: emailSubject,
+    message,
+    sentAtKigali,
+  });
+
+  const mailtoSubject = encodeURIComponent(emailSubject);
+  const mailtoBody = encodeURIComponent(
+    `Hello J&D Customer Care,\n\nName: ${clientName || 'Valued Client'}\nPhone: ${clientPhone || 'Not provided'}\nEmail: ${clientEmail || 'Not provided'}\nReceived (Kigali Time): ${sentAtKigali}\n\nClient Message:\n${message}\n\n---\nSent via J&D Smooth Ride & Logistics`
+  );
+  const mailtoUrl = `mailto:${careEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
+
+  if (!emailApiKey) {
+    console.info('[Customer Care Notice] Email_api_key is not configured in environment variables.');
+    return { 
+      success: false, 
+      error: 'Notice: Email_api_key not configured. Inquiry saved to customer inquiries records. Click below to send directly via email client.',
+      mailtoUrl,
+      loggedLocally: true,
+    };
+  }
+
+  // Pre-validate Resend API key format: All Resend keys start with 're_'
+  if (!emailApiKey.startsWith('re_')) {
+    console.info(`[Customer Care Email Notice] Configured key has prefix '${emailApiKey.slice(0, 3)}...' instead of 're_'. Resend requires keys starting with 're_'. Inquiry saved to customer inquiries records.`);
+    return {
+      success: false,
+      error: `Notice: The configured key format starts with "${emailApiKey.slice(0, 2)}..." instead of "re_". Resend API keys start with "re_" from https://resend.com/api-keys. Inquiry is safely recorded in your customer inquiries database. Click below to send directly via your email client.`,
+      mailtoUrl,
+      loggedLocally: true,
+    };
+  }
+
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #2d472c; border-radius: 12px; background-color: #ffffff; color: #1c261b;">
       <div style="background-color: #141e12; padding: 20px 24px; border-radius: 8px; margin-bottom: 24px; text-align: left;">
@@ -1288,14 +1414,30 @@ ${message}
     const data: any = await response.json().catch(() => ({}));
     if (response.ok) {
       console.log(`[Customer Care Email Success] Delivered inquiry to ${careEmail}, ID: ${data.id}`);
-      return { success: true, id: data.id };
+      return { success: true, id: data.id, mailtoUrl };
     } else {
-      console.error('[Customer Care Email Error]', response.status, data);
-      return { success: false, error: data.message || `Resend HTTP error ${response.status}` };
+      console.warn('[Customer Care Email Dispatch Notice]', response.status, data?.message || data?.name || 'Failed to dispatch');
+      let errorMsg = data?.message || `Email delivery error (${response.status})`;
+      if (response.status === 401 || (data?.message && data.message.toLowerCase().includes('api key'))) {
+        errorMsg = `Email API returned: ${data?.message || 'API key is invalid'}. Note: Resend API keys start with "re_" from https://resend.com/api-keys. Please verify your API key in environment variables or send via 1-tap email below.`;
+      } else if (response.status === 403 && data?.message && data.message.includes('testing emails')) {
+        errorMsg = `Resend restriction: Free test keys can only send to your verified account email. Verify a domain at resend.com/domains or use the 1-tap email button below.`;
+      }
+      return { 
+        success: false, 
+        error: errorMsg,
+        mailtoUrl,
+        loggedLocally: true,
+      };
     }
-  } catch (err: any) {
-    console.error('[Customer Care Email Exception]', err);
-    return { success: false, error: err.message || 'Failed to dispatch email' };
+    } catch (err: any) {
+    console.warn('[Customer Care Email Fetch Error]', err?.message || err);
+    return {
+      success: false,
+      error: `Could not connect to email delivery service: ${err?.message || 'Network error'}. Inquiry is recorded locally.`,
+      mailtoUrl,
+      loggedLocally: true,
+    };
   }
 }
 
@@ -1479,12 +1621,15 @@ We provide safe, sanitized moto-taxi rides (~1,000–3,500 RWF) and express parc
           message: `Your inquiry has been emailed directly to our Customer Care team at ${DEFAULT_CUSTOMER_CARE_EMAIL}. An agent will review and respond promptly.`,
           recipient: DEFAULT_CUSTOMER_CARE_EMAIL,
           emailId: emailResult.id,
+          mailtoUrl: emailResult.mailtoUrl,
         });
       } else {
-        return res.status(500).json({
+        return res.json({
           success: false,
           error: emailResult.error || 'Unable to deliver email at this moment.',
           fallbackEmail: DEFAULT_CUSTOMER_CARE_EMAIL,
+          mailtoUrl: emailResult.mailtoUrl,
+          loggedLocally: emailResult.loggedLocally,
         });
       }
     }
@@ -1641,12 +1786,15 @@ app.post('/api/support/email', async (req, res) => {
         message: `Inquiry successfully delivered to Customer Care at ${careEmail}.`,
         emailId: result.id,
         careEmail: careEmail,
+        mailtoUrl: result.mailtoUrl,
       });
     } else {
-      return res.status(500).json({
+      return res.json({
         success: false,
         error: result.error || 'Failed to dispatch email to Customer Care.',
         careEmail: careEmail,
+        mailtoUrl: result.mailtoUrl,
+        loggedLocally: result.loggedLocally,
       });
     }
   } catch (err: any) {
@@ -1659,14 +1807,49 @@ app.post('/api/support/email', async (req, res) => {
 
 // Diagnostic & Status endpoint for Customer Care Email
 app.get('/api/support/email-status', (req, res) => {
-  const apiKey = (process.env.Email_api_key || process.env.EMAIL_API_KEY || '').trim();
+  const apiKey = resolveEmailApiKey();
   const careEmail = resolveCustomerCareEmail();
   res.json({
     configured: !!apiKey,
+    keyFormat: apiKey ? (apiKey.startsWith('re_') ? 'resend_valid_prefix' : apiKey.startsWith('rs') ? 'rs_prefix' : 'custom_prefix') : 'not_configured',
     careEmail,
     provider: 'Resend (onboarding@resend.dev)',
     timestamp: new Date().toISOString(),
   });
+});
+
+// Retrieve logged customer support inquiries
+app.get('/api/support/inquiries', (req, res) => {
+  const inquiries = loadJsonFile(INQUIRIES_FILE);
+  res.json({
+    success: true,
+    total: inquiries.length,
+    inquiries,
+  });
+});
+
+// Direct test email dispatch endpoint
+app.post('/api/support/test-email', async (req, res) => {
+  const careEmail = resolveCustomerCareEmail();
+  const apiKey = resolveEmailApiKey();
+
+  if (!apiKey) {
+    return res.status(400).json({
+      success: false,
+      error: 'No EMAIL_API_KEY detected in environment variables.',
+      careEmail,
+    });
+  }
+
+  const result = await sendCustomerCareEmail({
+    clientName: 'J&D Diagnostic Verification',
+    clientPhone: '+250796569416',
+    clientEmail: careEmail,
+    subject: `[J&D Test Dispatch] Verification to ${careEmail}`,
+    message: `This is an automated verification test sent directly to ${careEmail} confirming email dispatch functionality.`,
+  });
+
+  return res.json(result);
 });
 
 // ----------------------------------------------------
@@ -1674,26 +1857,6 @@ app.get('/api/support/email-status', (req, res) => {
 // ----------------------------------------------------
 const DRIVERS_FILE = path.join(process.cwd(), 'drivers_registry.json');
 const CLIENTS_FILE = path.join(process.cwd(), 'clients_registry.json');
-
-function loadJsonFile(filePath: string): any[] {
-  try {
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (e: any) {
-    console.warn(`[Storage Warning] Error reading ${filePath}:`, e?.message);
-  }
-  return [];
-}
-
-function saveJsonFile(filePath: string, data: any[]) {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e: any) {
-    console.error(`[Storage Error] Failed to write ${filePath}:`, e?.message);
-  }
-}
 
 let registeredDrivers: any[] = loadJsonFile(DRIVERS_FILE);
 let registeredClients: any[] = loadJsonFile(CLIENTS_FILE);
@@ -1725,14 +1888,14 @@ async function syncToGoogleSheet(recordType: string, recordData: any) {
 
 // Resend Email Helper for Rider Approval to corneliustch@gmail.com
 async function sendRiderApprovalEmail(driver: any) {
-  const apiKey = (process.env.Email_api_key || process.env.EMAIL_API_KEY || '').trim();
+  const apiKey = resolveEmailApiKey();
   const adminEmail = resolveCustomerCareEmail();
   const appUrl = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 
   const approveLink = `${appUrl}/api/approve-driver?id=${encodeURIComponent(driver.id)}&token=${encodeURIComponent(driver.approvalToken)}`;
 
-  if (!apiKey) {
-    console.warn('[Email Approval Warning] Email_api_key not configured. Manual approval link:', approveLink);
+  if (!apiKey || !apiKey.startsWith('re_')) {
+    console.info('[Email Approval Notice] Resend API key (starting with "re_") not found. Manual approval link available:', approveLink);
     return { success: false, link: approveLink };
   }
 

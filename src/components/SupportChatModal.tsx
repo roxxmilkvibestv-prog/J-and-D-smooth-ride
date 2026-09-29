@@ -52,6 +52,8 @@ export interface ChatMessage {
   smsUrl?: string;
   isEmail?: boolean;
   emailRecipient?: string;
+  mailtoUrl?: string;
+  isEmailError?: boolean;
 }
 
 interface SupportChatModalProps {
@@ -335,6 +337,7 @@ You can also reach our live team directly:
               timestamp: currentTime,
               isEmail: true,
               emailRecipient: data.recipient || CUSTOMER_CARE_EMAIL,
+              mailtoUrl: data.mailtoUrl,
             },
           ]);
         } else {
@@ -367,24 +370,32 @@ You can also reach our live team directly:
           ]);
         }
       } else {
+        const errorText = data.error || 'Unable to complete dispatch at this moment.';
+        const fallbackMailto = data.mailtoUrl || `mailto:${CUSTOMER_CARE_EMAIL}?subject=${encodeURIComponent(`[J&D Support] Inquiry from ${trimmedName || trimmedPhone || 'Kigali Client'}`)}&body=${encodeURIComponent(`Client Name: ${trimmedName || 'Valued Client'}\nPhone: ${trimmedPhone || 'Not provided'}\nEmail: ${trimmedEmail || 'Not provided'}\n\nMessage:\n${text}`)}`;
+
         setMessages((prev) => [
           ...prev,
           {
             id: `err-${Date.now()}`,
             role: 'assistant',
-            content: `Notice: ${data.error || 'Unable to complete dispatch at this moment. You can email corneliustch@gmail.com or call 0796569416 directly.'}`,
+            content: `Notice: ${errorText}\n\n${data.loggedLocally ? '✅ *Your message has also been logged in our dispatch database.* ' : ''}You can also transmit your inquiry immediately via 1-tap email, WhatsApp, or direct call:`,
             timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+            mailtoUrl: fallbackMailto,
+            isEmailError: mode === 'email',
           },
         ]);
       }
     } catch (err: any) {
+      const fallbackMailto = `mailto:${CUSTOMER_CARE_EMAIL}?subject=${encodeURIComponent(`[J&D Support] Client Inquiry`)}&body=${encodeURIComponent(`Name: ${clientName || 'Client'}\nPhone: ${clientPhone || 'None'}\n\nMessage:\n${text}`)}`;
       setMessages((prev) => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           role: 'assistant',
-          content: 'Network connection issue. You can email corneliustch@gmail.com or call our live Kigali Operations Desk directly at 0796569416 (24/7).',
+          content: 'Network connection issue. Your message can still be delivered directly to corneliustch@gmail.com or via our live Kigali Operations Desk at 0796569416 (24/7).',
           timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          mailtoUrl: fallbackMailto,
+          isEmailError: mode === 'email',
         },
       ]);
     } finally {
@@ -1237,6 +1248,35 @@ You can also reach our live team directly:
                               <span className="bg-emerald-950 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border border-emerald-600/40">
                                 Emailed
                               </span>
+                            </div>
+                          )}
+
+                          {msg.mailtoUrl && (
+                            <div className="mt-3 pt-2.5 border-t border-[#384c37]/60 flex flex-wrap items-center gap-2">
+                              <a
+                                href={msg.mailtoUrl}
+                                className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-[#2d472c] hover:bg-[#385c37] text-[#9ed3aa] hover:text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-[#9ed3aa]" />
+                                <span>Open in Email App</span>
+                                <ExternalLink className="w-3 h-3 text-[#9ed3aa]/70" />
+                              </a>
+                              <a
+                                href={WHATSAPP_SUPPORT_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-[#25D366] hover:bg-[#20bd5a] text-black font-extrabold rounded-lg text-xs transition-all shadow-sm active:scale-95"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 fill-black text-black" />
+                                <span>WhatsApp Dispatch</span>
+                              </a>
+                              <a
+                                href="tel:0796569416"
+                                className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-[#1e2a1d] hover:bg-[#273825] text-white rounded-lg text-xs font-semibold border border-[#85AB8B]/40 transition-all active:scale-95"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-[#9ed3aa]" />
+                                <span>Call: 0796569416</span>
+                              </a>
                             </div>
                           )}
                         </div>
