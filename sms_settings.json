@@ -1,0 +1,5 @@
+{
+  "adminAlerts": true,
+  "driverUpdateAlerts": true,
+  "clientDeliverySms": true
+}

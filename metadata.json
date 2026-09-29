@@ -1,0 +1,9 @@
+{
+  "name": "J & D Smooth Ride and Pickup",
+  "description": "Premium moto-taxi and instant package pickup and delivery service across Kigali with direct rider fares, sanitized helmets, real-time GPS tracking, and MoMo integration.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

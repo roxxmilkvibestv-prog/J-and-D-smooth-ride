@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>J&D Smooth Ride | Kigali Pilot Driver Portal & GPS Broadcast</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- Google Fonts & Material Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #0b160a;
+      color: #d9e6d2;
+    }
+
+    #driverMap {
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      background: #0b160a;
+    }
+
+    /* OpenStreetMap raster tiles with dark mode CSS filter (NO Carto key watermark) */
+    .leaflet-tile {
+      filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
+    }
+
+    .leaflet-container {
+      background: #0b160a !important;
+    }
+
+    /* Top Pilot Status Header */
+    .pilot-header {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .pilot-brand {
+      pointer-events: auto;
+      background: rgba(18, 30, 23, 0.95);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(158, 211, 170, 0.3);
+      border-radius: 9999px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    }
+
+    .online-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #9ed3aa;
+      box-shadow: 0 0 10px #9ed3aa;
+      animation: pulse-online 1.5s infinite;
+    }
+
+    @keyframes pulse-online {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.5; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .portal-link {
+      pointer-events: auto;
+      background: rgba(18, 30, 23, 0.95);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #d9e6d2;
+      padding: 8px 14px;
+      border-radius: 9999px;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+    }
+
+    .portal-link:hover {
+      background: #336443;
+      border-color: #9ed3aa;
+    }
+
+    /* Bottom Floating Pilot Console */
+    .pilot-console {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 32px);
+      max-width: 500px;
+      z-index: 1000;
+      background: rgba(18, 30, 23, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(158, 211, 170, 0.35);
+      border-radius: 26px;
+      padding: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .telemetry-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .telemetry-card {
+      background: rgba(11, 22, 10, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .telemetry-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #9ed3aa;
+      font-family: 'Space Mono', monospace;
+      line-height: 1.1;
+    }
+
+    .telemetry-lbl {
+      font-size: 10px;
+      color: #8b938a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+      font-weight: 600;
+    }
+
+    .status-banner {
+      background: rgba(51, 100, 67, 0.3);
+      border: 1px solid rgba(158, 211, 170, 0.3);
+      border-radius: 14px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .status-banner strong {
+      color: #ffffff;
+    }
+
+    .sim-button-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-simulate {
+      width: 100%;
+      padding: 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #9ed3aa;
+      color: #02391c;
+      box-shadow: 0 6px 20px rgba(158, 211, 170, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-simulate.active {
+      background: #f59e0b;
+      color: #1a1002;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-simulate:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-gps-toggle {
+      width: 100%;
+      padding: 11px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(51, 100, 67, 0.6);
+      color: #d9e6d2;
+      border: 1px solid rgba(158, 211, 170, 0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-gps-toggle:hover {
+      background: #336443;
+      color: #ffffff;
+    }
+
+    .pricing-policy-pill {
+      font-size: 11px;
+      color: #a9dfb5;
+      text-align: center;
+      line-height: 1.4;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px dashed rgba(158, 211, 170, 0.2);
+    }
+
+    .pricing-policy-pill strong {
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Map Container -->
+  <div id="driverMap"></div>
+
+  <!-- Top Pilot Header -->
+  <div class="pilot-header">
+    <div class="pilot-brand">
+      <div class="online-indicator" id="onlineIndicator"></div>
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: #ffffff;">PILOT GPS TRANSMITTER</div>
+        <div style="font-size: 10px; color: #9ed3aa; font-family: 'Space Mono', monospace;" id="pilotPlateLabel">RAD 829 K • KIGALI</div>
+      </div>
+    </div>
+
+    <a href="/client.html" target="_blank" class="portal-link">
+      <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
+      <span>Client View</span>
+    </a>
+  </div>
+
+  <!-- Bottom Floating Pilot Console -->
+  <div class="pilot-console">
+    <!-- Telemetry Cards -->
+    <div class="telemetry-row">
+      <div class="telemetry-card">
+        <div class="telemetry-val" id="dispSpeed">0</div>
+        <div class="telemetry-lbl">Speed (km/h)</div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-val" id="dispHeading">NE 45°</div>
+        <div class="telemetry-lbl">Heading</div>
+      </div>
+      <div class="telemetry-card">
+        <div class="telemetry-val" id="dispAccuracy">5m</div>
+        <div class="telemetry-lbl">GPS Accuracy</div>
+      </div>
+    </div>
+
+    <!-- Live Status Banner -->
+    <div class="status-banner">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="material-symbols-outlined" style="color: #9ed3aa; font-size: 18px;">radar</span>
+        <span id="transmissionStatus">Mode: <strong>Hardware GPS Active</strong></span>
+      </div>
+      <span style="font-size: 10px; font-family: 'Space Mono', monospace; color: #9ed3aa;" id="packetCounter">0 pkts sent</span>
+    </div>
+
+    <!-- Kigali Drive Simulator & Real Hardware GPS Controls -->
+    <div class="sim-button-row">
+      <!-- CRITICAL REQUIREMENT 6: "SIMULATE KIGALI DRIVE" TOGGLE BUTTON -->
+      <button type="button" class="btn-simulate" id="btnSimulateDrive">
+        <span class="material-symbols-outlined">route</span>
+        <span id="simBtnLabel">Simulate Kigali Drive (Nyarugenge ➔ BK Arena)</span>
+      </button>
+
+      <button type="button" class="btn-gps-toggle" id="btnHardwareGps">
+        <span class="material-symbols-outlined">my_location</span>
+        <span id="gpsBtnLabel">Force Hardware GPS Watch</span>
+      </button>
+    </div>
+
+    <!-- Direct Rider Pricing Notice -->
+    <div class="pricing-policy-pill">
+      Pilot Fare Agreement: You agree on the trip fare directly with your passenger. Collect via MoMo <strong>*182*1*1*0796569416#</strong> or direct cash.
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Socket.io Client -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+    // ----------------------------------------------------
+    // CRITICAL REQUIREMENT 1: DEFAULT ON KIGALI, RWANDA
+    // Latitude: -1.9441, Longitude: 30.0619, Zoom: 14
+    // ----------------------------------------------------
+    const KIGALI_COORDS = [-1.9441, 30.0619];
+
+    // Initialize Map
+    const map = L.map('driverMap', {
+      center: KIGALI_COORDS,
+      zoom: 14,
+      zoomControl: false,
+    });
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // OpenStreetMap Raster Tiles with CSS Dark Filter (NO Carto key required)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap | J&D Pilot Transmitter',
+    }).addTo(map);
+
+    // Pilot Vehicle Icon
+    const pilotIcon = L.divIcon({
+      className: 'pilot-location-pin',
+      html: `
+        <div style="position: relative; width: 44px; height: 44px;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: #336443; border: 2px solid #9ed3aa; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.8);">
+            <span class="material-symbols-outlined" style="color: #ffffff; font-size: 22px;">two_wheeler</span>
+          </div>
+          <div style="position: absolute; bottom: -4px; right: 0; background: #9ed3aa; color: #02391c; font-size: 9px; font-weight: 800; padding: 1px 4px; border-radius: 4px;">
+            YOU
+          </div>
+        </div>
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
+    });
+
+    let pilotMarker = L.marker(KIGALI_COORDS, { icon: pilotIcon }).addTo(map);
+
+    // Connect to WebSocket Relay
+    let socket = null;
+    let packetCount = 0;
+    try {
+      socket = io();
+      socket.on('connect', () => {
+        console.log('[Pilot Portal] Connected to Socket.io relay');
+      });
+    } catch (e) {
+      console.warn('Socket unavailable', e);
+    }
+
+    // Retrieve saved pilot or default
+    let pilotProfile = {
+      id: 'pilot_' + Math.random().toString(36).substr(2, 6),
+      name: 'Jean Claude (Kigali Pilot)',
+      plate: 'RAD 829 K',
+    };
+
+    try {
+      const stored = localStorage.getItem('jd_smooth_pilot_profile');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.fullName) pilotProfile.name = parsed.fullName;
+        if (parsed.bikePlate) pilotProfile.plate = parsed.bikePlate;
+      }
+    } catch (e) {}
+
+    document.getElementById('pilotPlateLabel').innerText = `${pilotProfile.plate} • KIGALI`;
+
+    // ----------------------------------------------------
+    // BROADCAST HELPER OVER SOCKET.IO
+    // ----------------------------------------------------
+    function broadcastPosition(lat, lng, speed = 35, heading = 45) {
+      // Guard against 0,0 ocean bug
+      if (!lat || !lng || (lat === 0 && lng === 0) || isNaN(lat) || isNaN(lng)) return;
+
+      pilotMarker.setLatLng([lat, lng]);
+
+      packetCount++;
+      document.getElementById('packetCounter').innerText = `${packetCount} pkts sent`;
+      document.getElementById('dispSpeed').innerText = Math.round(speed);
+      document.getElementById('dispHeading').innerText = `${Math.round(heading)}°`;
+
+      if (socket && socket.connected) {
+        socket.emit('driver-location-update', {
+          driverId: pilotProfile.id,
+          driverName: pilotProfile.name,
+          bikePlate: pilotProfile.plate,
+          lat: lat,
+          lng: lng,
+          speed: speed,
+          heading: heading,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    // ----------------------------------------------------
+    // REAL DEVICE HARDWARE GPS STREAMING
+    // navigator.geolocation.watchPosition
+    // ----------------------------------------------------
+    let gpsWatchId = null;
+
+    function startHardwareGps() {
+      if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser.');
+        return;
+      }
+
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+        document.getElementById('transmissionStatus').innerHTML = 'Mode: <strong>GPS Paused</strong>';
+        document.getElementById('gpsBtnLabel').innerText = 'Start Hardware GPS';
+        return;
+      }
+
+      document.getElementById('transmissionStatus').innerHTML = 'Mode: <strong>Hardware GPS Streaming...</strong>';
+      document.getElementById('gpsBtnLabel').innerText = 'Stop Hardware GPS';
+
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const speedKmh = pos.coords.speed ? (pos.coords.speed * 3.6) : 28;
+          const heading = pos.coords.heading || 0;
+          const accuracy = Math.round(pos.coords.accuracy || 5);
+
+          document.getElementById('dispAccuracy').innerText = `${accuracy}m`;
+          map.panTo([lat, lng]);
+          broadcastPosition(lat, lng, speedKmh, heading);
+        },
+        (err) => {
+          console.warn('[GPS Error]', err.message);
+          document.getElementById('transmissionStatus').innerHTML = '<span style="color: #f87171;">GPS Permission Denied. Use Simulator</span>';
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000
+        }
+      );
+    }
+
+    document.getElementById('btnHardwareGps').addEventListener('click', startHardwareGps);
+
+    // ----------------------------------------------------
+    // CRITICAL REQUIREMENT 6: KIGALI ROUTE DRIVE SIMULATOR
+    // Route from Nyarugenge CBD -> Kiyovu -> Kimihurura -> Kigali Heights -> Remera BK Arena
+    // ----------------------------------------------------
+    const KIGALI_SIM_ROUTE = [
+      [-1.9441, 30.0619], // Kigali City Center / Nyarugenge
+      [-1.9460, 30.0635],
+      [-1.9485, 30.0670], // Down towards Kiyovu
+      [-1.9510, 30.0715],
+      [-1.9525, 30.0780], // Kimihurura corridor
+      [-1.9535, 30.0840],
+      [-1.9530, 30.0910], // Kigali Convention Centre
+      [-1.9515, 30.0965], // Kigali Heights roundabout
+      [-1.9480, 30.1030], // Gishushu junction
+      [-1.9460, 30.1090], // Towards Remera
+      [-1.9520, 30.1150], // BK Arena & Amahoro Stadium
+      [-1.9555, 30.1190], // Giporoso Remera Corner
+      [-1.9520, 30.1150], // Loop back
+      [-1.9480, 30.1030],
+      [-1.9515, 30.0965],
+      [-1.9441, 30.0619],
+    ];
+
+    let simIntervalId = null;
+    let simIndex = 0;
+
+    function toggleDriveSimulator() {
+      const btn = document.getElementById('btnSimulateDrive');
+      const label = document.getElementById('simBtnLabel');
+
+      if (simIntervalId !== null) {
+        clearInterval(simIntervalId);
+        simIntervalId = null;
+        btn.classList.remove('active');
+        label.innerText = 'Simulate Kigali Drive (Nyarugenge ➔ BK Arena)';
+        document.getElementById('transmissionStatus').innerHTML = 'Mode: <strong>Simulator Stopped</strong>';
+        return;
+      }
+
+      // Stop hardware GPS if active to avoid conflicting positions
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+        document.getElementById('gpsBtnLabel').innerText = 'Start Hardware GPS';
+      }
+
+      btn.classList.add('active');
+      label.innerText = 'Stop Kigali Drive Simulator';
+      document.getElementById('transmissionStatus').innerHTML = 'Mode: <strong style="color: #f59e0b;">Kigali Simulator Active (Relaying live)</strong>';
+      document.getElementById('dispAccuracy').innerText = 'Sim 100%';
+
+      simIntervalId = setInterval(() => {
+        const curr = KIGALI_SIM_ROUTE[simIndex];
+        const next = KIGALI_SIM_ROUTE[(simIndex + 1) % KIGALI_SIM_ROUTE.length];
+
+        // Compute simulated bearing / heading
+        const dLng = next[1] - curr[1];
+        const dLat = next[0] - curr[0];
+        let heading = Math.atan2(dLng, dLat) * (180 / Math.PI);
+        if (heading < 0) heading += 360;
+
+        const simulatedSpeed = 38 + Math.floor(Math.random() * 14); // 38-52 km/h
+        map.panTo(curr);
+        broadcastPosition(curr[0], curr[1], simulatedSpeed, heading);
+
+        simIndex = (simIndex + 1) % KIGALI_SIM_ROUTE.length;
+      }, 1500);
+    }
+
+    document.getElementById('btnSimulateDrive').addEventListener('click', toggleDriveSimulator);
+
+    // Initial broadcast to announce pilot presence on load
+    broadcastPosition(KIGALI_COORDS[0], KIGALI_COORDS[1], 0, 45);
+  </script>
+</body>
+</html>

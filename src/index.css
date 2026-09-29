@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #9ed3aa;
+  --color-on-primary: #02391c;
+  --color-primary-container: #336443;
+  --color-on-primary-container: #a9dfb5;
+  --color-primary-fixed: #b9efc5;
+  --color-primary-fixed-dim: #9ed3aa;
+  --color-on-primary-fixed: #00210e;
+  --color-on-primary-fixed-variant: #1e5031;
+  --color-secondary: #a9d0ae;
+  --color-on-secondary: #14371f;
+  --color-secondary-container: #2b4e34;
+  --color-on-secondary-container: #98bf9e;
+  --color-secondary-fixed: #c4edc9;
+  --color-secondary-fixed-dim: #a9d0ae;
+  --color-on-secondary-fixed: #00210c;
+  --color-on-secondary-fixed-variant: #2b4e34;
+  --color-tertiary: #b2cfa8;
+  --color-on-tertiary: #1e361b;
+  --color-tertiary-container: #476142;
+  --color-on-tertiary-container: #bddbb4;
+  --color-tertiary-fixed: #cdebc3;
+  --color-tertiary-fixed-dim: #b2cfa8;
+  --color-on-tertiary-fixed: #092008;
+  --color-on-tertiary-fixed-variant: #344d30;
+  --color-background: #0b160a;
+  --color-on-background: #d9e6d2;
+  --color-surface: #0b160a;
+  --color-on-surface: #d9e6d2;
+  --color-surface-variant: #2c382a;
+  --color-on-surface-variant: #c1c9bf;
+  --color-surface-dim: #0b160a;
+  --color-surface-bright: #313c2e;
+  --color-surface-container-lowest: #071106;
+  --color-surface-container-low: #141e12;
+  --color-surface-container: #182216;
+  --color-surface-container-high: #222d20;
+  --color-surface-container-highest: #2c382a;
+  --color-inverse-surface: #d9e6d2;
+  --color-inverse-on-surface: #283326;
+  --color-inverse-primary: #376847;
+  --color-outline: #8b938a;
+  --color-outline-variant: #414942;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-surface-tint: #9ed3aa;
+  --spacing-container-margin-desktop: 48px;
+  --spacing-container-margin-mobile: 16px;
+  --font-headline-xl: Inter, sans-serif;
+  --font-headline-lg: Inter, sans-serif;
+  --font-body-md: Inter, sans-serif;
+  --font-headline-md: Inter, sans-serif;
+  --font-headline-lg-mobile: Inter, sans-serif;
+  --font-label-sm: Inter, sans-serif;
+  --font-body-lg: Inter, sans-serif;
+}
+
+@font-face {
+  font-family: 'Podium Sharp';
+  src: url('https://db.onlinewebfonts.com/t/8b75d9dcff6a48c35a46656192adf019.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-podium { 
+  font-family: 'Podium Sharp', 'Inter', sans-serif; 
+}
+
+@keyframes fade-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-100 { animation-delay: 0.04s; }
+.delay-200 { animation-delay: 0.08s; }
+.delay-300 { animation-delay: 0.12s; }
+.delay-400 { animation-delay: 0.16s; }
+.delay-500 { animation-delay: 0.20s; }
+
+@layer base {
+  :root {
+    --primary: #9ed3aa;
+    --surface-bg: #0b160a;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: #0b160a;
+    color: #d9e6d2;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.custom-font-heading {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: clamp(2.25rem, 5.5vw, 5.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+.glass-panel {
+  background-color: rgba(24, 34, 22, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(158, 211, 170, 0.14);
+}
+
+.glass-card {
+  background-color: rgba(24, 34, 22, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(158, 211, 170, 0.12);
+}
+
+/* Hardware accelerated transform helper */
+.transform-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Pulse animation for active moto tracker */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom scrollbar for modals */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141e12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #336443;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ed3aa;
+}
+
+/* SynapseX Neural Monospace & Anton SC Styles */
+.font-space-mono {
+  font-family: 'Space Mono', monospace, monospace !important;
+}
+
+.font-anton {
+  font-family: 'Anton SC', 'Anton', sans-serif !important;
+}
